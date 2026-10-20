@@ -1,0 +1,106 @@
+import math
+
+def run_cucumber_diagnosis():
+    print("=" * 65)
+    print("오이 과실 대사체 상태 평가 및 처방 시스템")
+    print("=" * 65)
+
+    # =====================================================================
+    # L_1.0 공통 참고군 기준값 세팅
+    # =====================================================================
+    ref_citric = 41301.66667           # L_1.0의 Citric acid Area 평균값
+    ref_malic = 765690.8333            # L_1.0의 Malic acid Area 평균값
+    ref_asparagine = 225800.8333       # L_1.0의 Asparagine Area 평균값
+    ref_glutamine = 8780677.333        # L_1.0의 Glutamine Area 평균값
+    ref_saponarin = 88407.33333        # L_1.0의 Saponarin Area 평균값
+    ref_apigenin = 109210.1667         # L_1.0의 Apigenin 8-C-glucoside Area 평균값
+    # =====================================================================
+
+    def get_positive_float(prompt_text):
+        """0 이상의 양수(float)를 입력받을 때까지 반복하는 함수"""
+        while True:
+            try:
+                val = float(input(prompt_text))
+                if val > 0:
+                    return val
+                else:
+                    print(" ⚠️ [입력 오류] 0 이상의 양수만 입력 가능합니다. 다시 입력해 주세요.")
+            except ValueError:
+                print(" ⚠️ [입력 오류] 숫자 형식으로 정확히 입력해 주세요. 다시 입력해 주세요.")
+
+    print("\n평가 시료(Target Sample)의 대사체 Area 값을 입력하세요.")
+
+    sam_citric = get_positive_float(" - Citric acid: ")
+    sam_malic = get_positive_float(" - Malic acid: ")
+    sam_asparagine = get_positive_float(" - Asparagine: ")
+    sam_glutamine = get_positive_float(" - Glutamine: ")
+    sam_saponarin = get_positive_float(" - Saponarin: ")
+    sam_apigenin = get_positive_float(" - Apigenin 8-C-glucoside: ")
+
+    # --- 비율 계산 로직 ---
+    # L_1.0 참고군 비율 (CM, N, F)
+    ref_CM = ref_citric / ref_malic if ref_malic else 0
+    ref_N = ref_asparagine / ref_glutamine if ref_glutamine else 0
+    ref_F = ref_saponarin / ref_apigenin if ref_apigenin else 0
+
+    # 평가 시료 비율
+    sam_CM = sam_citric / sam_malic if sam_malic else 0
+    sam_N = sam_asparagine / sam_glutamine if sam_glutamine else 0
+    sam_F = sam_saponarin / sam_apigenin if sam_apigenin else 0
+
+    # 상대비(r) 및 log2 변화량 계산
+    r_CM = sam_CM / ref_CM if ref_CM else 0
+    r_N = sam_N / ref_N if ref_N else 0
+    r_F = sam_F / ref_F if ref_F else 0
+
+    def calc_log2(val):
+        return math.log2(val) if val > 0 else 0
+
+    log2_CM, log2_N, log2_F = calc_log2(r_CM), calc_log2(r_N), calc_log2(r_F)
+
+    # 이탈 점수(D) 산출
+    score_S = (abs(log2_CM) + abs(log2_N) + abs(log2_F)) / 3.0
+
+    # A~D 구간 분류
+    if score_S < 0.25:
+        grade = "A"
+    elif score_S < 0.50:
+        grade = "B"
+    elif score_S < 1.00:
+        grade = "C"
+    else:
+        grade = "D"
+        
+    # 조건부 추천 로직
+    recs = []
+    if grade == "A":
+        recs.append("[기본] 참고 비율과 비교적 유사 (대사체 전용 추가 처방 없음)")
+    elif grade == "B":
+        recs.append("[기본] 변화가 확인된 비율 및 개별 대사체 면적 재점검")
+        recs.append("💡 [추천] 식물 유래 단백질 가수분해물 후보 검토")
+    elif grade == "C":
+        recs.append("[기본] EC·pH·조직 양분·생육 상태 확인 우선")
+        recs.append("💡 [추천] 내염성 식물생장촉진세균(PGPR) 후보 검토")
+    elif grade == "D":
+        recs.append("⚠️ [경고] 극심한 대사 이탈 (QC·기준 적합성·환경 원인 재검토)")
+        recs.append("⚠️ [안내] 원인 확인 후 재평가")
+
+    # --- 출력 ---
+    print("\n" + "=" * 65)
+    print(" [ 분석 및 처방 결과 리포트 ]")
+    print("=" * 65)
+    print(f"▶ 상대비 정규화 지표 (Target Ratio / L1_1.0 Ratio):")
+    print(f"  - r_CM (Citric/Malic)   : {r_CM:.3f}  (log2: {log2_CM:.3f})")
+    print(f"  - r_N  (Asn/Gln)        : {r_N:.3f}  (log2: {log2_N:.3f})")
+    print(f"  - r_F  (Sap/Api)        : {r_F:.3f}  (log2: {log2_F:.3f})")
+    print("-" * 65)
+    print(f"▶ 이탈 점수 (Score S)     : {score_S:.3f}")
+    print(f"▶ 평가 구간               : {grade} 구간")
+    print("-" * 65)
+    print("▶ 바이오스티뮬런트 처방 추천:")
+    for r in recs:
+        print(f"  {r}")
+    print("=" * 65)
+
+# 실행
+run_cucumber_diagnosis()
